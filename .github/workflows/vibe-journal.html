@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Mobile App Settings -->
+    <meta name="theme-color" content="#020014">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Vibe Journal</title>
+    <style>
+        :root {
+            --bg-deep: #020014;
+            --bg-mid: #110d29;
+            --bg-light: #0d1226;
+            --accent-pink: #ff2e63;
+            --accent-cyan: #08d9d6;
+            --text-glow: 0 0 10px rgba(8, 217, 214, 0.7);
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            position: relative; /* ensure z-indexed children stack properly */
+            background: linear-gradient(135deg, var(--bg-deep), var(--bg-mid), var(--bg-light));
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            /* Prevent pull-to-refresh on mobile */
+            overscroll-behavior-y: none;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Scanline effect */
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed; /* use fixed to reliably overlay the viewport */
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        h1 {
+            position: relative;
+            z-index: 3;
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3rem;
+            color: var(--accent-cyan);
+            text-shadow: var(--text-glow);
+            margin-top: 2rem;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            z-index: 3;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        /* Input Area */
+        .entry-box {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border: var(--border);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            margin-bottom: 2rem;
+            transition: transform 0.2s;
+        }
+
+        .entry-box:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        textarea {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            padding: 1rem;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 100px;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        textarea:focus {
+            box-shadow: 0 0 15px rgba(8, 217, 214, 0.1);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+        }
+
+        button {
+            background: transparent;
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            padding: 0.5rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: var(--accent-cyan);
+            color: var(--bg-deep);
+            box-shadow: 0 0 15px var(--accent-cyan);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.record-btn {
+            border-color: var(--accent-pink);
+            color: var(--accent-pink);
+        }
+
+        button.record-btn:hover {
+            background: var(--accent-pink);
+            color: #fff;
+            box-shadow: 0 0 15px var(--accent-pink);
+        }
+
+        button.recording {
+            background: var(--accent-pink);
+            color: #fff;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 46, 99, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 46, 99, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 46, 99, 0); }
+        }
+
+        /* Journal Feed */
+        .journal-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .journal-entry {
+            background: rgba(0, 0, 0, 0.2);
+            border-left: 3px solid var(--accent-cyan);
+            padding: 1rem;
+            border-radius: 0 10px 10px 0;
+            position: relative;
+        }
+
+        .journal-entry.has-audio {
+            border-left-color: var(--accent-pink);
+        }
+
+        .date-stamp {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .entry-text {
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
+        .audio-player {
+            margin-top: 1rem;
+            width: 100%;
+            height: 30px;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-deep);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-cyan);
+            border-radius: 4px;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            border: none;
+            color: rgba(255,255,255,0.3);
+            font-size: 1.2rem;
+            padding: 0;
+            cursor: pointer;
+            background: transparent;
+        }
+        .delete-btn:hover {
+            background: none;
+            color: var(--accent-pink);
+            box-shadow: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Vibe Journal</h1>
+
+    <div class="container">
+        
+        <div class="entry-box">
+            <textarea id="textInput" placeholder="What is on your mind today?" aria-label="Journal text"></textarea>
+            
+            <div class="controls">
+                <button id="recordBtn" class="record-btn" type="button" aria-pressed="false" aria-label="Record audio">
+                    <span>●</span> Record
+                </button>
+                <span id="statusText" style="font-size: 0.8rem; opacity: 0.7; color: #fff;"></span>
+                <button id="saveBtn" type="button">
+                    Save Entry
+                </button>
+            </div>
+        </div>
+
+        <div id="feed" class="journal-feed" aria-live="polite">
+            <!-- Entries appear here -->
+        </div>
+
+    </div>
+
+    <script>
+        // --- Database Setup (IndexedDB) ---
+        // We use IndexedDB instead of LocalStorage because Audio blobs are too big for LocalStorage
+        const DB_NAME = 'VibeJournalDB';
+        const STORE_NAME = 'entries';
+        let db;
+        let isSaving = false; // Prevent duplicate saves
+
+        const recordBtn = document.getElementById('recordBtn');
+        const statusText = document.getElementById('statusText');
+        const saveBtn = document.getElementById('saveBtn');
+        const textInput = document.getElementById('textInput');
+
+        // Disable save until DB is ready
+        saveBtn.disabled = true;
+
+        // --- Feature detection ---
+        if (!window.indexedDB) {
+            alert("This browser doesn't support IndexedDB. The app cannot save entries.");
+            saveBtn.disabled = true;
+            recordBtn.disabled = true;
+        }
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            // Disable recording if not supported
+            recordBtn.disabled = true;
+            recordBtn.title = "Microphone capture not supported in this browser";
+        }
+
+        const initDB = () => {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                
+                request.onerror = (event) => {
+                    console.error("DB Error:", event);
+                    alert("Failed to initialize database. Please refresh the page.");
+                    reject(event);
+                };
+                
+                request.onupgradeneeded = (event) => {
+                    const upgradeDb = event.target.result;
+                    if (!upgradeDb.objectStoreNames.contains(STORE_NAME)) {
+                        upgradeDb.createObjectStore(STORE_NAME, { keyPath: "id" });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    loadEntries();
+                    saveBtn.disabled = false; // enable now DB is ready
+                    resolve(db);
+                };
+            });
+        };
+
+        // --- Audio Recording Logic ---
+        let mediaRecorder;
+        let audioChunks = [];
+        let currentAudioBlob = null;
+        let isRecording = false;
+        let activeStream = null;
+
+        const audioURLs = new Set(); // Track URLs for cleanup
+
+        const resetRecordingState = () => {
+            isRecording = false;
+            recordBtn.classList.remove('recording');
+            recordBtn.innerHTML = "<span>●</span> Record";
+            recordBtn.disabled = false;
+            recordBtn.setAttribute('aria-pressed', 'false');
+            if (activeStream) {
+                activeStream.getTracks().forEach(track => track.stop());
+                activeStream = null;
+            }
+        };
+
+        recordBtn.addEventListener('click', async () => {
+            if (recordBtn.disabled) return;
+
+            if (!isRecording) {
+                // Start Recording
+                try {
+                    audioChunks = []; // Clear previous chunks
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    activeStream = stream;
+
+                    try {
+                        mediaRecorder = new MediaRecorder(stream);
+                    } catch (err) {
+                        console.error("MediaRecorder not supported for this stream:", err);
+                        statusText.innerText = "Recording not supported.";
+                        if (activeStream) {
+                            activeStream.getTracks().forEach(t => t.stop());
+                            activeStream = null;
+                        }
+                        return;
+                    }
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event && event.data && event.data.size > 0) {
+                            audioChunks.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        // Use the blob type provided by the chunks if possible
+                        const mime = audioChunks[0]?.type || (mediaRecorder && mediaRecorder.mimeType) || '';
+                        const audioBlob = mime ? new Blob(audioChunks, { type: mime }) : new Blob(audioChunks);
+                        currentAudioBlob = audioBlob;
+                        statusText.innerText = "Audio captured - ready to save.";
+                        // Re-enable Save button now that audio has been captured
+                        saveBtn.disabled = false;
+                        resetRecordingState();
+                    };
+
+                    mediaRecorder.onerror = (event) => {
+                        console.error("MediaRecorder Error:", event);
+                        statusText.innerText = "Recording failed.";
+                        resetRecordingState();
+                        // Ensure Save gets enabled only if DB is ready and not recording
+                        if (db) saveBtn.disabled = false;
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    // disable saving while recording to avoid race
+                    saveBtn.disabled = true;
+                    recordBtn.classList.add('recording');
+                    recordBtn.innerHTML = "<span>■</span> Stop";
+                    recordBtn.setAttribute('aria-pressed', 'true');
+                    recordBtn.disabled = false;
+                    statusText.innerText = "Recording...";
+
+                } catch (err) {
+                    console.error("Mic Error:", err);
+                    statusText.innerText = "Microphone access denied.";
+                    resetRecordingState();
+                    
+                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                        alert("Microphone permission denied. Please allow access in your browser settings.");
+                    } else {
+                        alert("Could not access microphone. Please check your device settings.");
+                    }
+                }
+            } else {
+                // Stop Recording
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            }
+        });
+
+        // --- Saving Entries ---
+        saveBtn.addEventListener('click', () => {
+            if (isSaving) return; // Prevent duplicate saves
+            if (!db) {
+                statusText.innerText = "Database not ready.";
+                setTimeout(() => statusText.innerText = "", 2000);
+                return;
+            }
+            
+            const text = textInput.value.trim();
+            
+            if (!text && !currentAudioBlob) {
+                statusText.innerText = "Nothing to save!";
+                setTimeout(() => statusText.innerText = "", 2000);
+                return; // Don't save empty entries
+            }
+
+            isSaving = true;
+            saveBtn.disabled = true;
+            statusText.innerText = "Saving...";
+
+            const entry = {
+                id: Date.now(),
+                text: text,
+                date: new Date().toLocaleString(),
+                audio: currentAudioBlob // This can be null, that's fine
+            };
+
+            try {
+                const transaction = db.transaction([STORE_NAME], "readwrite");
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.add(entry);
+
+                request.onsuccess = () => {
+                    // Reset UI
+                    textInput.value = "";
+                    textInput.blur(); // Dismiss mobile keyboard
+                    currentAudioBlob = null;
+                    statusText.innerText = "Saved!";
+                    setTimeout(() => statusText.innerText = "", 2000);
+                    loadEntries(); // Refresh list
+                    isSaving = false;
+                    // Keep saveBtn enabled (unless recording)
+                    saveBtn.disabled = false;
+                };
+
+                request.onerror = (event) => {
+                    console.error("Save Error:", event);
+                    statusText.innerText = "Save failed!";
+                    setTimeout(() => statusText.innerText = "", 3000);
+                    isSaving = false;
+                    saveBtn.disabled = false;
+                };
+            } catch (err) {
+                console.error("Transaction Error:", err);
+                statusText.innerText = "Save failed!";
+                setTimeout(() => statusText.innerText = "", 3000);
+                isSaving = false;
+                saveBtn.disabled = false;
+            }
+        });
+
+        // --- Loading & Displaying Entries ---
+        function loadEntries() {
+            const feed = document.getElementById('feed');
+            
+            // Revoke old audio URLs to prevent memory leaks
+            audioURLs.forEach(url => {
+                try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
+            });
+            audioURLs.clear();
+            
+            feed.innerHTML = ''; // Clear current feed
+
+            try {
+                const transaction = db.transaction([STORE_NAME], "readonly");
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll();
+
+                request.onsuccess = (event) => {
+                    const entries = event.target.result || [];
+                    // Sort by newest first
+                    entries.sort((a, b) => b.id - a.id);
+
+                    entries.forEach(entry => {
+                        const div = document.createElement('div');
+                        div.className = 'journal-entry';
+                        if (entry.audio) div.classList.add('has-audio');
+
+                        const dateSpan = document.createElement('span');
+                        dateSpan.className = 'date-stamp';
+                        dateSpan.textContent = entry.date || '';
+
+                        const p = document.createElement('p');
+                        p.className = 'entry-text';
+                        // Use escapeHtml to preserve safety and line breaks
+                        p.innerHTML = escapeHtml(entry.text || '');
+
+                        div.appendChild(dateSpan);
+                        div.appendChild(p);
+
+                        // Add Audio Player if exists
+                        if (entry.audio) {
+                            const audioUrl = URL.createObjectURL(entry.audio);
+                            audioURLs.add(audioUrl); // Track for cleanup
+
+                            const audioEl = document.createElement('audio');
+                            audioEl.controls = true;
+                            audioEl.className = 'audio-player';
+                            audioEl.src = audioUrl;
+                            audioEl.setAttribute('aria-label', 'Entry audio playback');
+
+                            div.appendChild(audioEl);
+                        }
+
+                        // Delete Button (use event listener instead of inline onclick)
+                        const delBtn = document.createElement('button');
+                        delBtn.className = 'delete-btn';
+                        delBtn.type = 'button';
+                        delBtn.title = 'Delete entry';
+                        delBtn.setAttribute('aria-label', 'Delete entry');
+                        delBtn.textContent = '×';
+                        delBtn.addEventListener('click', () => {
+                            deleteEntry(entry.id);
+                        });
+
+                        div.appendChild(delBtn);
+
+                        feed.appendChild(div);
+                    });
+                };
+
+                request.onerror = (event) => {
+                    console.error("Load Error:", event);
+                    feed.innerHTML = '<p style="color: var(--accent-pink); text-align: center;">Failed to load entries.</p>';
+                };
+            } catch (err) {
+                console.error("Transaction Error:", err);
+                feed.innerHTML = '<p style="color: var(--accent-pink); text-align: center;">Failed to load entries.</p>';
+            }
+        }
+
+        // Helper function to escape HTML and preserve line breaks
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/\n/g, '<br>');
+        }
+
+        // --- Deleting Entries ---
+        function deleteEntry(id) {
+            if (!db) {
+                alert("Database not ready.");
+                return;
+            }
+            if (confirm("Delete this memory?")) {
+                try {
+                    const transaction = db.transaction([STORE_NAME], "readwrite");
+                    const store = transaction.objectStore(STORE_NAME);
+                    const request = store.delete(id);
+                    
+                    request.onsuccess = () => {
+                        loadEntries();
+                    };
+                    
+                    request.onerror = (event) => {
+                        console.error("Delete Error:", event);
+                        alert("Failed to delete entry.");
+                    };
+                } catch (err) {
+                    console.error("Delete Transaction Error:", err);
+                    alert("Failed to delete entry.");
+                }
+            }
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            audioURLs.forEach(url => {
+                try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
+            });
+            if (activeStream) {
+                activeStream.getTracks().forEach(track => track.stop());
+            }
+            if (db) {
+                try { db.close(); } catch (e) { /* ignore */ }
+            }
+        });
+
+        // Initialize App
+        initDB().catch(err => {
+            console.error("Failed to initialize app:", err);
+            // keep save disabled (already disabled by default)
+        });
+
+    </script>
+</body>
+</html>
